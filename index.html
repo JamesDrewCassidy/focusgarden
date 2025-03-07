@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Basic Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
+  <title>FocusGarden</title>
+  <style>
+    /* CSS Variables for theming */
+    :root {
+      --primary-color: #2e7d32;
+      --primary-color-dark: #81c784;
+      --background-light: #f0f4f8;
+      --background-dark: #121212;
+      --text-light: #333;
+      --text-dark: #e0e0e0;
+      --accent-light: #e8f5e9;
+      --accent-dark: #1e1e1e;
+      --border-light: #ccc;
+      --border-dark: #444;
+      --transition-speed: 0.5s;
+    }
+    /* Global Styles */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--background-light);
+      color: var(--text-light);
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+      transition: background var(--transition-speed), color var(--transition-speed);
+    }
+    body.dark-mode {
+      background: var(--background-dark);
+      color: var(--text-dark);
+    }
+    header, main, footer {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    header h1 {
+      color: var(--primary-color);
+      margin-bottom: 10px;
+      opacity: 0;
+      animation: fadeInDown 1s forwards;
+    }
+    body.dark-mode header h1 {
+      color: var(--primary-color-dark);
+    }
+    p {
+      margin: 10px 0;
+    }
+    input[type="text"],
+    input[type="number"] {
+      padding: 10px;
+      font-size: 16px;
+      width: 300px;
+      max-width: 90%;
+      margin: 10px;
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      transition: border-color 0.3s;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      border-color: var(--primary-color);
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 5px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      transition: background 0.3s, transform 0.2s;
+    }
+    button:hover {
+      background: #e0e0e0;
+      transform: translateY(-2px);
+    }
+    body.dark-mode button:hover {
+      background: #333;
+    }
+    #timer {
+      font-size: 48px;
+      margin: 20px 0;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+    .hidden { display: none; }
+    /* Progress Bar */
+    .progress-container {
+      width: 90%;
+      height: 20px;
+      background-color: #eee;
+      border-radius: 10px;
+      margin: 10px auto;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background-color: var(--primary-color);
+      border-radius: 10px;
+      transition: width 0.5s ease-out;
+    }
+    /* Garden Styles */
+    #garden {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .plant {
+      font-size: 40px;
+      margin: 5px;
+      cursor: pointer;
+      opacity: 0;
+      animation: fadeInScale 0.5s forwards;
+      transition: transform 0.3s;
+    }
+    .plant:hover { transform: scale(1.1); }
+    /* Daily Tip Box */
+    .tip-box {
+      background: var(--accent-light);
+      border: 1px solid #c8e6c9;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 15px auto;
+      max-width: 500px;
+      opacity: 0;
+      animation: slideDown 1s forwards;
+    }
+    body.dark-mode .tip-box {
+      background: var(--accent-dark);
+      border-color: var(--border-dark);
+    }
+    /* Celebration Overlay */
+    #celebrationOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(230, 255, 230, 0.95);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+    #celebrationOverlay.visible { opacity: 1; }
+    #celebrationOverlay.hidden { display: none; }
+    .celebrationContent {
+      text-align: center;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    .bigTree {
+      font-size: 200px;
+      animation: treeGrow 1s ease-out forwards;
+      text-shadow: 0 0 20px rgba(46, 125, 50, 0.5);
+      margin-top: 50px;
+    }
+    @keyframes treeGrow {
+      0% { transform: scale(0.5); opacity: 0.5; }
+      60% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    /* Falling Leaves */
+    .leaf {
+      position: absolute;
+      font-size: 50px;
+      opacity: 1;
+      animation: leafFall 4s linear infinite;
+    }
+    .leaf1 { left: 20%; animation-delay: 0.5s; }
+    .leaf2 { left: 50%; animation-delay: 1s; }
+    .leaf3 { left: 80%; animation-delay: 1.5s; }
+    @keyframes leafFall {
+      0% { top: -10%; transform: rotate(0deg); opacity: 1; }
+      100% { top: 110%; transform: rotate(360deg); opacity: 0; }
+    }
+    /* Task Complete Text & Keep Going Button */
+    .taskCompleteText {
+      font-size: 60px;
+      font-weight: bold;
+      color: var(--primary-color);
+      animation: textPulse 2s infinite;
+      margin-top: 20px;
+    }
+    @keyframes textPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    #keepGoingButton {
+      padding: 15px 30px;
+      font-size: 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: var(--primary-color);
+      color: #fff;
+      cursor: pointer;
+      margin-top: 20px;
+      animation: buttonBounce 2s infinite;
+    }
+    @keyframes buttonBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    /* Animations */
+    @keyframes fadeInDown {
+      0% { opacity: 0; transform: translateY(-20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideDown {
+      0% { opacity: 0; transform: translateY(-10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInScale {
+      0% { opacity: 0; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    /* Responsive Adjustments */
+    @media (max-width: 600px) {
+      header h1 { font-size: 24px; }
+      #timer { font-size: 36px; }
+      .plant { font-size: 30px; }
+      .bigTree { font-size: 150px; }
+      .taskCompleteText { font-size: 40px; }
+      #keepGoingButton { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>FocusGarden</h1>
+    <button id="darkModeToggle" aria-label="Toggle dark mode">🌙</button>
+  </header>
+  <main>
+    <div class="tip-box" id="dailyTip"><!-- Daily tip will appear here --></div>
+    <p>
+      Enter your task and set your session length. Stay focused until the timer ends to grow your virtual plant!
+    </p>
+    <input type="text" id="taskInput" placeholder="What task will you focus on?" aria-label="Task input" />
+    <br />
+    <input type="number" id="sessionLengthInput" placeholder="Session Length (minutes)" value="25" min="1" aria-label="Session length in minutes" />
+    <br />
+    <button id="startButton">Start Focus Session</button>
+    <button id="pauseButton" class="hidden">Pause</button>
+    <button id="cancelButton" class="hidden">Cancel Session</button>
+    <div id="timer" aria-live="polite">00:00</div>
+    <div class="progress-container">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+    <div id="plantDisplay"></div>
+    <h2>Your Garden</h2>
+    <div id="garden"></div>
+    <br />
+    <button id="resetGardenButton">Reset Garden</button>
+  </main>
+  <footer>
+    <p>&copy; 2025 FocusGarden. All rights reserved.</p>
+  </footer>
+
+  <!-- Celebration Overlay -->
+  <div id="celebrationOverlay" class="hidden">
+    <div class="celebrationContent">
+      <div class="bigTree">🌳</div>
+      <div class="leaf leaf1">🍃</div>
+      <div class="leaf leaf2">🍃</div>
+      <div class="leaf leaf3">🍃</div>
+      <div class="taskCompleteText">TASK COMPLETE!</div>
+      <button id="keepGoingButton">Keep Going</button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      "use strict";
+
+      // Cache DOM elements
+      const darkModeToggle = document.getElementById("darkModeToggle");
+      const startButton = document.getElementById("startButton");
+      const pauseButton = document.getElementById("pauseButton");
+      const cancelButton = document.getElementById("cancelButton");
+      const resetGardenButton = document.getElementById("resetGardenButton");
+      const taskInput = document.getElementById("taskInput");
+      const sessionLengthInput = document.getElementById("sessionLengthInput");
+      const timerDisplay = document.getElementById("timer");
+      const progressBar = document.getElementById("progressBar");
+      const plantDisplay = document.getElementById("plantDisplay");
+      const gardenDiv = document.getElementById("garden");
+      const dailyTipBox = document.getElementById("dailyTip");
+      const celebrationOverlay = document.getElementById("celebrationOverlay");
+      const keepGoingButton = document.getElementById("keepGoingButton");
+
+      let sessionActive = false;
+      let timerInterval = null;
+      let sessionDuration = 1500; // Default: 25 minutes in seconds
+      let timeRemaining = sessionDuration;
+      let paused = false;
+      let garden = loadGarden() || [];
+
+      document.addEventListener("DOMContentLoaded", () => {
+        displayGarden();
+        displayDailyTip();
+        attachEventListeners();
+        registerServiceWorker();
+      });
+
+      function attachEventListeners() {
+        darkModeToggle.addEventListener("click", toggleDarkMode);
+        startButton.addEventListener("click", startSession);
+        pauseButton.addEventListener("click", togglePause);
+        cancelButton.addEventListener("click", cancelSession);
+        resetGardenButton.addEventListener("click", resetGarden);
+        keepGoingButton.addEventListener("click", hideCelebrationOverlay);
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState !== "visible" && sessionActive) {
+            cancelSession();
+          }
+        });
+      }
+
+      function loadGarden() {
+        try {
+          return JSON.parse(localStorage.getItem("focusGarden"));
+        } catch (e) {
+          console.error("Error loading garden data:", e);
+          return [];
+        }
+      }
+
+      function saveGarden() {
+        try {
+          localStorage.setItem("focusGarden", JSON.stringify(garden));
+        } catch (e) {
+          console.error("Error saving garden data:", e);
+        }
+      }
+
+      function startSession() {
+        if (sessionActive) return;
+        const task = taskInput.value.trim() || "Unnamed Task";
+        const minutes = parseInt(sessionLengthInput.value, 10) || 25;
+        sessionDuration = minutes * 60;
+        timeRemaining = sessionDuration;
+        sessionActive = true;
+        paused = false;
+
+        startButton.classList.add("hidden");
+        pauseButton.classList.remove("hidden");
+        cancelButton.classList.remove("hidden");
+        plantDisplay.innerHTML = '<div style="font-size: 60px;">🌱</div>';
+        updateTimerDisplay();
+        updateProgressBar();
+
+        timerInterval = setInterval(() => {
+          if (!paused) {
+            timeRemaining--;
+            updateTimerDisplay();
+            updateProgressBar();
+            if (timeRemaining <= 0) completeSession(task);
+          }
+        }, 1000);
+      }
+
+      function togglePause() {
+        if (!sessionActive) return;
+        paused = !paused;
+        pauseButton.textContent = paused ? "Resume" : "Pause";
+        timerDisplay.style.opacity = paused ? "0.5" : "1";
+      }
+
+      function updateTimerDisplay() {
+        const minutes = Math.floor(timeRemaining / 60);
+        const seconds = timeRemaining % 60;
+        timerDisplay.textContent = 
+          (minutes < 10 ? "0" + minutes : minutes) + ":" +
+          (seconds < 10 ? "0" + seconds : seconds);
+      }
+
+      function updateProgressBar() {
+        const progress = ((sessionDuration - timeRemaining) / sessionDuration) * 100;
+        progressBar.style.width = progress + "%";
+      }
+
+      function completeSession(task) {
+        clearInterval(timerInterval);
+        sessionActive = false;
+        showCelebrationOverlay();
+        garden.push({ task, timestamp: new Date().toLocaleString() });
+        saveGarden();
+        displayGarden();
+      }
+
+      function cancelSession() {
+        if (!sessionActive) return;
+        clearInterval(timerInterval);
+        sessionActive = false;
+        plantDisplay.innerHTML = '<div style="font-size: 60px; color: gray; opacity: 0.8;">💀</div>';
+        setTimeout(resetSessionUI, 2000);
+      }
+
+      function resetSessionUI() {
+        startButton.classList.remove("hidden");
+        pauseButton.classList.add("hidden");
+        cancelButton.classList.add("hidden");
+        plantDisplay.innerHTML = "";
+        timerDisplay.textContent = "00:00";
+        progressBar.style.width = "0%";
+      }
+
+      function resetGarden() {
+        if (confirm("Are you sure you want to reset your garden?")) {
+          garden = [];
+          try {
+            localStorage.removeItem("focusGarden");
+          } catch (e) {
+            console.error("Error resetting garden:", e);
+          }
+          displayGarden();
+        }
+      }
+
+      function displayGarden() {
+        gardenDiv.innerHTML = "";
+        if (!garden || garden.length === 0) {
+          gardenDiv.innerHTML = "<p>Your garden is empty. Complete focus sessions to grow plants!</p>";
+          return;
+        }
+        garden.forEach((session, index) => {
+          const plantElem = document.createElement("div");
+          plantElem.classList.add("plant");
+          plantElem.textContent = "🌳";
+          plantElem.title = session.task + " - " + session.timestamp;
+          plantElem.addEventListener("click", () => {
+            if (confirm("Delete this session?\n" + session.task + "\n" + session.timestamp)) {
+              garden.splice(index, 1);
+              saveGarden();
+              displayGarden();
+            }
+          });
+          gardenDiv.appendChild(plantElem);
+        });
+      }
+
+      function displayDailyTip() {
+        // 50 daily tips
+        const tips = [
+          "Break tasks into smaller, manageable parts.",
+          "Focus on one task at a time.",
+          "Take short breaks to boost your concentration.",
+          "Set clear goals before starting your work.",
+          "Celebrate small wins to stay motivated.",
+          "Keep your workspace clean and organized.",
+          "Plan your day the night before.",
+          "Eliminate distractions while working.",
+          "Prioritize your tasks based on importance.",
+          "Use the Pomodoro Technique to manage time.",
+          "Keep a notepad handy for quick ideas.",
+          "Practice mindfulness to reduce stress.",
+          "Schedule breaks to refresh your mind.",
+          "Drink plenty of water throughout the day.",
+          "Take a walk during your break for fresh air.",
+          "Declutter your digital workspace regularly.",
+          "Set specific and measurable goals.",
+          "Review your progress at the end of the day.",
+          "Organize tasks by deadlines and priorities.",
+          "Minimize multitasking to maintain focus.",
+          "Use a timer to structure your work sessions.",
+          "Reward yourself for completing challenging tasks.",
+          "Break long projects into smaller milestones.",
+          "Focus on progress, not perfection.",
+          "Keep a positive mindset during setbacks.",
+          "Start with the most important task first.",
+          "Avoid overcommitting your schedule.",
+          "Dedicate a specific space for work.",
+          "Set boundaries to avoid burnout.",
+          "Practice deep breathing to improve focus.",
+          "Reflect on your achievements regularly.",
+          "Keep your computer desktop organized.",
+          "Create a to-do list each morning.",
+          "Limit social media usage during work hours.",
+          "Set aside time for learning and growth.",
+          "Eliminate unnecessary meetings from your calendar.",
+          "Use productivity tools to manage tasks.",
+          "Prioritize quality over quantity in work.",
+          "Write down your thoughts to clear your mind.",
+          "Stay flexible and adjust plans as needed.",
+          "Avoid procrastination by starting small.",
+          "Keep track of your daily accomplishments.",
+          "Set time limits for each task.",
+          "Learn to delegate tasks effectively.",
+          "Use breaks to recharge your creativity.",
+          "Minimize interruptions by setting a schedule.",
+          "Take time to appreciate your hard work.",
+          "Stay organized with a structured routine.",
+          "Review and update your goals periodically.",
+          "Focus on what you can control and let go of the rest."
+        ];
+        const today = new Date().toISOString().split("T")[0];
+        let storedTip = localStorage.getItem("dailyTip");
+        let storedDate = localStorage.getItem("dailyTipDate");
+        if (!storedTip || storedDate !== today) {
+          storedTip = tips[Math.floor(Math.random() * tips.length)];
+          try {
+            localStorage.setItem("dailyTip", storedTip);
+            localStorage.setItem("dailyTipDate", today);
+          } catch (e) {
+            console.error("Error saving daily tip:", e);
+          }
+        }
+        dailyTipBox.textContent = "Daily Tip: " + storedTip;
+      }
+
+      function showCelebrationOverlay() {
+        celebrationOverlay.classList.remove("hidden");
+        celebrationOverlay.offsetWidth; // force reflow
+        celebrationOverlay.classList.add("visible");
+      }
+
+      function hideCelebrationOverlay() {
+        celebrationOverlay.classList.remove("visible");
+        setTimeout(() => {
+          celebrationOverlay.classList.add("hidden");
+          resetSessionUI();
+        }, 1000);
+      }
+
+      function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+        darkModeToggle.style.transform = "rotate(360deg)";
+        setTimeout(() => { darkModeToggle.style.transform = "rotate(0deg)"; }, 500);
+      }
+
+      function registerServiceWorker() {
+        if ("serviceWorker" in navigator) {
+          const swCode = `
+            const CACHE_NAME = 'focusgarden-cache-v1';
+            const urlsToCache = [location.href];
+            self.addEventListener('install', event => {
+              event.waitUntil(
+                caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+              );
+            });
+            self.addEventListener('fetch', event => {
+              event.respondWith(
+                caches.match(event.request).then(response => response || fetch(event.request))
+              );
+            });
+          `;
+          const blob = new Blob([swCode], { type: "application/javascript" });
+          const swURL = URL.createObjectURL(blob);
+          navigator.serviceWorker.register(swURL)
+            .then(registration => {
+              console.log("Service worker registered with scope:", registration.scope);
+            })
+            .catch(error => {
+              console.error("Service worker registration failed:", error);
+            });
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
