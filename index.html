@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- PWA: Link to manifest -->
+  <link rel="manifest" href="manifest.json">
+  <!-- Mobile Web App Capabilities -->
+  <meta name="theme-color" content="#2e7d32">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
   <!-- Basic Content Security Policy -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
   <title>FocusGarden</title>
@@ -49,9 +58,7 @@
     body.dark-mode header h1 {
       color: var(--primary-color-dark);
     }
-    p {
-      margin: 10px 0;
-    }
+    p { margin: 10px 0; }
     input[type="text"],
     input[type="number"] {
       padding: 10px;
@@ -80,9 +87,7 @@
       background: #e0e0e0;
       transform: translateY(-2px);
     }
-    body.dark-mode button:hover {
-      background: #333;
-    }
+    body.dark-mode button:hover { background: #333; }
     #timer {
       font-size: 48px;
       margin: 20px 0;
@@ -134,6 +139,20 @@
       animation: slideDown 1s forwards;
     }
     body.dark-mode .tip-box {
+      background: var(--accent-dark);
+      border-color: var(--border-dark);
+    }
+    /* Analytics Section */
+    #analytics {
+      background: var(--accent-light);
+      border: 1px solid var(--border-light);
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px auto;
+      max-width: 500px;
+      text-align: left;
+    }
+    body.dark-mode #analytics {
       background: var(--accent-dark);
       border-color: var(--border-dark);
     }
@@ -214,6 +233,13 @@
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-5px); }
     }
+    /* Toggle Buttons for Dark Mode & Sound */
+    #darkModeToggle, #soundToggleButton {
+      font-size: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
     /* Animations */
     @keyframes fadeInDown {
       0% { opacity: 0; transform: translateY(-20px); }
@@ -242,12 +268,11 @@
   <header>
     <h1>FocusGarden</h1>
     <button id="darkModeToggle" aria-label="Toggle dark mode">🌙</button>
+    <button id="soundToggleButton" aria-label="Toggle sound notifications">🔔</button>
   </header>
   <main>
-    <div class="tip-box" id="dailyTip"><!-- Daily tip will appear here --></div>
-    <p>
-      Enter your task and set your session length. Stay focused until the timer ends to grow your virtual plant!
-    </p>
+    <div class="tip-box" id="dailyTip" role="status"><!-- Daily tip will appear here --></div>
+    <p>Enter your task and set your session length. Stay focused until the timer ends to grow your virtual plant!</p>
     <input type="text" id="taskInput" placeholder="What task will you focus on?" aria-label="Task input" />
     <br />
     <input type="number" id="sessionLengthInput" placeholder="Session Length (minutes)" value="25" min="1" aria-label="Session length in minutes" />
@@ -259,18 +284,27 @@
     <div class="progress-container">
       <div id="progressBar" class="progress-bar"></div>
     </div>
-    <div id="plantDisplay"></div>
+    <div id="plantDisplay" aria-label="Current session plant display"></div>
+    
     <h2>Your Garden</h2>
-    <div id="garden"></div>
+    <div id="garden" aria-label="Completed focus sessions garden"></div>
     <br />
     <button id="resetGardenButton">Reset Garden</button>
+
+    <!-- Analytics Section -->
+    <section id="analytics" aria-label="Session analytics">
+      <h3>Session Analytics</h3>
+      <p id="totalSessions">Total Sessions: 0</p>
+      <p id="totalFocusTime">Total Focus Time: 0 minutes</p>
+      <p id="achievements">Achievements: None</p>
+    </section>
   </main>
   <footer>
     <p>&copy; 2025 FocusGarden. All rights reserved.</p>
   </footer>
 
   <!-- Celebration Overlay -->
-  <div id="celebrationOverlay" class="hidden">
+  <div id="celebrationOverlay" class="hidden" role="dialog" aria-modal="true">
     <div class="celebrationContent">
       <div class="bigTree">🌳</div>
       <div class="leaf leaf1">🍃</div>
@@ -287,6 +321,7 @@
 
       // Cache DOM elements
       const darkModeToggle = document.getElementById("darkModeToggle");
+      const soundToggleButton = document.getElementById("soundToggleButton");
       const startButton = document.getElementById("startButton");
       const pauseButton = document.getElementById("pauseButton");
       const cancelButton = document.getElementById("cancelButton");
@@ -298,6 +333,10 @@
       const plantDisplay = document.getElementById("plantDisplay");
       const gardenDiv = document.getElementById("garden");
       const dailyTipBox = document.getElementById("dailyTip");
+      const analyticsSection = document.getElementById("analytics");
+      const totalSessionsElem = document.getElementById("totalSessions");
+      const totalFocusTimeElem = document.getElementById("totalFocusTime");
+      const achievementsElem = document.getElementById("achievements");
       const celebrationOverlay = document.getElementById("celebrationOverlay");
       const keepGoingButton = document.getElementById("keepGoingButton");
 
@@ -306,22 +345,136 @@
       let sessionDuration = 1500; // Default: 25 minutes in seconds
       let timeRemaining = sessionDuration;
       let paused = false;
+      let soundEnabled = true;
       let garden = loadGarden() || [];
+
+      // --- Song Variables & Audio Setup ---
+      let songPlaying = false;
+      let melodyTimeoutId, chordTimeoutId;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContext();
+      const masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.085;
+      masterGain.connect(audioCtx.destination);
+
+      // Melody track data
+      const melody = [
+        { frequency: 261.63, duration: 0.5 },  // C4
+        { frequency: 293.66, duration: 0.5 },  // D4
+        { frequency: 329.63, duration: 0.5 },  // E4
+        { frequency: 392.00, duration: 0.5 },  // G4
+        { frequency: 523.25, duration: 0.5 },  // C5
+        { frequency: 392.00, duration: 0.5 },  // G4
+        { frequency: 329.63, duration: 0.5 },  // E4
+        { frequency: 293.66, duration: 0.5 },  // D4
+        { frequency: 261.63, duration: 1.0 }   // C4
+      ];
+      const melodyDuration = melody.reduce((total, note) => total + note.duration, 0);
+
+      function playMelodyNote(type, startTime, frequency, duration, gainValue = 0.5) {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(frequency, startTime);
+        gainNode.gain.setValueAtTime(0.001, startTime);
+        gainNode.gain.linearRampToValueAtTime(gainValue, startTime + 0.05);
+        gainNode.gain.setValueAtTime(gainValue, startTime + duration - 0.1);
+        gainNode.gain.linearRampToValueAtTime(0.001, startTime + duration);
+        osc.connect(gainNode);
+        gainNode.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      }
+
+      function playMelody(startTime) {
+        let currentTime = startTime;
+        melody.forEach(note => {
+          playMelodyNote('sine', currentTime, note.frequency, note.duration, 0.5);
+          currentTime += note.duration;
+        });
+        if (songPlaying) {
+          melodyTimeoutId = setTimeout(() => {
+            playMelody(audioCtx.currentTime);
+          }, melodyDuration * 1000);
+        }
+      }
+
+      // Chord (Pad) track data
+      const chordProgression = [
+        { time: 0.0, chord: [261.63, 329.63, 392.00], duration: 2.5 },  // C major
+        { time: 2.5, chord: [349.23, 440.00, 523.25], duration: 2.5 }   // F major
+      ];
+      const chordLoopDuration = 5.0;
+
+      function playChordNote(type, startTime, frequency, duration, gainValue = 0.3, panValue = 0) {
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        const panner = audioCtx.createStereoPanner();
+        osc.type = type;
+        osc.frequency.setValueAtTime(frequency, startTime);
+        gainNode.gain.setValueAtTime(0.001, startTime);
+        gainNode.gain.linearRampToValueAtTime(gainValue, startTime + 0.2);
+        gainNode.gain.setValueAtTime(gainValue, startTime + duration - 0.2);
+        gainNode.gain.linearRampToValueAtTime(0.001, startTime + duration);
+        panner.pan.setValueAtTime(panValue, startTime);
+        osc.connect(gainNode);
+        gainNode.connect(panner);
+        panner.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      }
+
+      function playChords(startTime) {
+        chordProgression.forEach(segment => {
+          segment.chord.forEach(frequency => {
+            playChordNote('sawtooth', startTime + segment.time, frequency, segment.duration, 0.3);
+          });
+        });
+        if (songPlaying) {
+          chordTimeoutId = setTimeout(() => {
+            playChords(audioCtx.currentTime);
+          }, chordLoopDuration * 1000);
+        }
+      }
+
+      function startSong() {
+        songPlaying = true;
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const startTime = audioCtx.currentTime + 0.1;
+        playMelody(startTime);
+        playChords(startTime);
+      }
+
+      function stopSong() {
+        songPlaying = false;
+        clearTimeout(melodyTimeoutId);
+        clearTimeout(chordTimeoutId);
+      }
+
+      // ---------------- End Song Integration ----------------
 
       document.addEventListener("DOMContentLoaded", () => {
         displayGarden();
         displayDailyTip();
+        updateAnalytics();
         attachEventListeners();
         registerServiceWorker();
+        setupInstallPrompt();
       });
 
       function attachEventListeners() {
         darkModeToggle.addEventListener("click", toggleDarkMode);
+        soundToggleButton.addEventListener("click", toggleSound);
         startButton.addEventListener("click", startSession);
         pauseButton.addEventListener("click", togglePause);
         cancelButton.addEventListener("click", cancelSession);
         resetGardenButton.addEventListener("click", resetGarden);
-        keepGoingButton.addEventListener("click", hideCelebrationOverlay);
+        keepGoingButton.addEventListener("click", () => {
+          hideCelebrationOverlay();
+          stopSong(); // Stop the song when user continues
+        });
         document.addEventListener("visibilitychange", () => {
           if (document.visibilityState !== "visible" && sessionActive) {
             cancelSession();
@@ -346,6 +499,28 @@
         }
       }
 
+      function updateAnalytics() {
+        const totalSessions = garden.length;
+        const totalMinutes = garden.reduce((sum, session) => sum + session.sessionMinutes, 0);
+        totalSessionsElem.textContent = "Total Sessions: " + totalSessions;
+        totalFocusTimeElem.textContent = "Total Focus Time: " + totalMinutes + " minutes";
+        achievementsElem.textContent = "Achievements: " + getAchievements(totalSessions);
+      }
+
+      function getAchievements(total) {
+        let achievements = [];
+        if (total >= 1) achievements.push("First Focus Session");
+        if (total >= 5) achievements.push("5 Sessions Completed");
+        if (total >= 10) achievements.push("10 Sessions Completed");
+        if (total >= 25) achievements.push("Focus Master");
+        return achievements.length ? achievements.join(", ") : "None";
+      }
+
+      function toggleSound() {
+        soundEnabled = !soundEnabled;
+        soundToggleButton.textContent = soundEnabled ? "🔔" : "🔕";
+      }
+
       function startSession() {
         if (sessionActive) return;
         const task = taskInput.value.trim() || "Unnamed Task";
@@ -367,7 +542,7 @@
             timeRemaining--;
             updateTimerDisplay();
             updateProgressBar();
-            if (timeRemaining <= 0) completeSession(task);
+            if (timeRemaining <= 0) completeSession(task, minutes);
           }
         }, 1000);
       }
@@ -392,13 +567,16 @@
         progressBar.style.width = progress + "%";
       }
 
-      function completeSession(task) {
+      function completeSession(task, sessionMinutes) {
         clearInterval(timerInterval);
         sessionActive = false;
+        // Play celebration song and show overlay
         showCelebrationOverlay();
-        garden.push({ task, timestamp: new Date().toLocaleString() });
+        startSong();
+        garden.push({ task, sessionMinutes, timestamp: new Date().toLocaleString() });
         saveGarden();
         displayGarden();
+        updateAnalytics();
       }
 
       function cancelSession() {
@@ -427,6 +605,7 @@
             console.error("Error resetting garden:", e);
           }
           displayGarden();
+          updateAnalytics();
         }
       }
 
@@ -439,13 +618,17 @@
         garden.forEach((session, index) => {
           const plantElem = document.createElement("div");
           plantElem.classList.add("plant");
-          plantElem.textContent = "🌳";
-          plantElem.title = session.task + " - " + session.timestamp;
+          let plantIcon = "🌱";
+          if (index >= 1 && index < 5) plantIcon = "🌳";
+          if (index >= 5) plantIcon = "🌲";
+          plantElem.textContent = plantIcon;
+          plantElem.title = session.task + " - " + session.timestamp + " (" + session.sessionMinutes + " min)";
           plantElem.addEventListener("click", () => {
             if (confirm("Delete this session?\n" + session.task + "\n" + session.timestamp)) {
               garden.splice(index, 1);
               saveGarden();
               displayGarden();
+              updateAnalytics();
             }
           });
           gardenDiv.appendChild(plantElem);
@@ -453,7 +636,6 @@
       }
 
       function displayDailyTip() {
-        // 50 daily tips
         const tips = [
           "Break tasks into smaller, manageable parts.",
           "Focus on one task at a time.",
@@ -568,6 +750,33 @@
             });
         }
       }
+
+      // --- Install Prompt Handling ---
+      let deferredPrompt;
+      function setupInstallPrompt() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+          // Prevent the mini-infobar from appearing on mobile
+          e.preventDefault();
+          deferredPrompt = e;
+          // Optionally, display your custom install button here
+          // For example: document.getElementById('installButton').classList.remove('hidden');
+        });
+      }
+      
+      // You can also add an install button that calls this function:
+      function installApp() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+          });
+        }
+      }
+      // -------------------------------
+
     })();
   </script>
 </body>
