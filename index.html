@@ -142,19 +142,35 @@
       background: var(--accent-dark);
       border-color: var(--border-dark);
     }
-    /* Analytics Section */
+    /* Analytics Section - Updated for a polished, modern look */
     #analytics {
       background: var(--accent-light);
-      border: 1px solid var(--border-light);
-      padding: 15px;
-      border-radius: 5px;
+      border: none;
+      border-radius: 8px;
       margin: 20px auto;
+      padding: 20px;
       max-width: 500px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      transition: box-shadow 0.3s ease;
       text-align: left;
+    }
+    #analytics:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     }
     body.dark-mode #analytics {
       background: var(--accent-dark);
-      border-color: var(--border-dark);
+      box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+    }
+    #analytics h3 {
+      font-size: 1.5rem;
+      margin-bottom: 15px;
+      border-bottom: 2px solid var(--primary-color);
+      padding-bottom: 5px;
+    }
+    #analytics p {
+      margin: 5px 0;
+      font-size: 1.1rem;
+      line-height: 1.4;
     }
     /* Celebration Overlay */
     #celebrationOverlay {
@@ -573,7 +589,8 @@
         // Play celebration song and show overlay
         showCelebrationOverlay();
         startSong();
-        garden.push({ task, sessionMinutes, timestamp: new Date().toLocaleString() });
+        // Add a unique sessionId using Date.now()
+        garden.push({ task, sessionMinutes, timestamp: new Date().toLocaleString(), sessionId: Date.now() });
         saveGarden();
         displayGarden();
         updateAnalytics();
@@ -615,9 +632,11 @@
           gardenDiv.innerHTML = "<p>Your garden is empty. Complete focus sessions to grow plants!</p>";
           return;
         }
-        garden.forEach((session, index) => {
+        garden.forEach(session => {
           const plantElem = document.createElement("div");
           plantElem.classList.add("plant");
+          // Use findIndex for icon selection based on order if desired
+          const index = garden.findIndex(s => s.sessionId === session.sessionId);
           let plantIcon = "🌱";
           if (index >= 1 && index < 5) plantIcon = "🌳";
           if (index >= 5) plantIcon = "🌲";
@@ -625,7 +644,7 @@
           plantElem.title = session.task + " - " + session.timestamp + " (" + session.sessionMinutes + " min)";
           plantElem.addEventListener("click", () => {
             if (confirm("Delete this session?\n" + session.task + "\n" + session.timestamp)) {
-              garden.splice(index, 1);
+              garden = garden.filter(s => s.sessionId !== session.sessionId);
               saveGarden();
               displayGarden();
               updateAnalytics();
@@ -755,15 +774,11 @@
       let deferredPrompt;
       function setupInstallPrompt() {
         window.addEventListener('beforeinstallprompt', (e) => {
-          // Prevent the mini-infobar from appearing on mobile
           e.preventDefault();
           deferredPrompt = e;
-          // Optionally, display your custom install button here
-          // For example: document.getElementById('installButton').classList.remove('hidden');
         });
       }
       
-      // You can also add an install button that calls this function:
       function installApp() {
         if (deferredPrompt) {
           deferredPrompt.prompt();
