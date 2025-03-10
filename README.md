@@ -1,6 +1,6 @@
 # FocusGarden
 
-FocusGarden is a project aimed at helping individuals improve their focus and productivity. 
+FocusGarden is a project aimed at helping individuals improve their focus and productivity. Try it here https://jamesdrewcassidy.github.io/focusgarden/
 
 ## Features
 
